@@ -52,6 +52,40 @@ public static class LabTools
     public static string GetCurrentTime() =>
         $"UTC now: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}";
 
+    [Description("Gets the current local date and time for a city.")]
+    public static async Task<string> GetLocalTimeByCity(
+        [Description("City name, e.g. Sofia")] string city)
+    {
+        try
+        {
+            var place = await Geocode(city);
+            if (place is null) return $"I couldn't find a place called \"{city}\".";
+
+            var url = "https://api.open-meteo.com/v1/forecast" +
+                      $"?latitude={Coord(place.Value.Latitude)}" +
+                      $"&longitude={Coord(place.Value.Longitude)}" +
+                      "&current=temperature_2m";
+            using var doc = JsonDocument.Parse(await Http.GetStringAsync(url));
+
+            if (!doc.RootElement.TryGetProperty("current", out var current) ||
+                !current.TryGetProperty("time", out var localTimeRaw))
+            {
+                return $"The time service returned no local time for {place.Value.Name}.";
+            }
+
+            var localTime = DateTime.Parse(
+                localTimeRaw.GetString()!,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeLocal);
+
+            return $"{place.Value.Name}: local time is {localTime:yyyy-MM-dd HH:mm}.";
+        }
+        catch (Exception ex)
+        {
+            return $"I couldn't reach the time service for \"{city}\": {ex.Message}";
+        }
+    }
+
     /// <summary>Turns a city name into coordinates, shared by the location tools.</summary>
     private static async Task<(double Latitude, double Longitude, string Name)?> Geocode(string city)
     {

@@ -43,11 +43,13 @@ List<AITool> tools =
 [
     AIFunctionFactory.Create(LabTools.GetWeather),
     AIFunctionFactory.Create(LabTools.GetCurrentTime),
+    AIFunctionFactory.Create(LabTools.GetLocalTimeByCity),
 ];
 
 var agent = chat.AsAIAgent(
     instructions: "You are the AI LAB assistant. For weather or time questions, " +
-                  "always call your tools instead of guessing, then answer briefly.",
+                  "always call your tools instead of guessing. If the user asks for time in a city, " +
+                  "use GetLocalTimeByCity with the city from their prompt, then answer briefly.",
     name: "ailab-agent",
     tools: tools);
 
