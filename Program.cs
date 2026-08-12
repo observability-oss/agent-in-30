@@ -1,10 +1,8 @@
 // AI LAB — build an AI agent in 30 minutes.
 //
-// A Microsoft Agent Framework agent with two tools — and, so far, no
-// observability at all. It works, but it's a black box: how many model calls
-// did that answer take? What did it cost? Did it really use its tools?
-// In the lab we wire it up to Progress Observability, live, and find out —
-// the steps are in INSTRUMENT.md.
+// The FINISHED version — main's bare agent with every INSTRUMENT.md step
+// applied. If you fell behind during the live part, you are looking at the
+// answer key.
 
 using System.ClientModel;
 using AgentLab;
@@ -12,6 +10,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using OpenAI;
+using Progress.Observability.Extensions.AI;
 
 // Environment variables override user secrets; secrets live outside the
 // repo (dotnet user-secrets), so there is never a key in this folder.
@@ -23,6 +22,18 @@ var config = new ConfigurationBuilder()
 var orKey = config["OpenRouter:ApiKey"];
 var model = config["OpenRouter:Model"] ?? "google/gemini-2.5-flash";
 var baseUrl = config["OpenRouter:BaseUrl"] ?? "https://openrouter.ai/api/v1";
+
+var appName = config["Progress:Observability:AppName"] ?? "ailab-agent";
+var obsKey = config["Progress:Observability:ApiKey"];
+
+if (!string.IsNullOrWhiteSpace(obsKey))
+{
+    ObservabilityTracer.Initialize(new ObservabilityOptions
+    {
+        AppName = appName,
+        ApiKey = obsKey,
+    });
+}
 
 if (string.IsNullOrWhiteSpace(orKey))
 {
@@ -38,6 +49,9 @@ IChatClient chat = new OpenAIClient(
     .GetChatClient(model)
     .AsIChatClient();
 Console.WriteLine($"model: {model} via OpenRouter");
+
+if (!string.IsNullOrWhiteSpace(obsKey))
+    chat = chat.AddObservability(); // THE LINE — see INSTRUMENT.md step 3c
 
 List<AITool> tools =
 [
@@ -68,4 +82,5 @@ while (true)
     Console.WriteLine($"Agent: {reply.Text}\n");
 }
 
+ObservabilityTracer.Shutdown();
 return 0;
